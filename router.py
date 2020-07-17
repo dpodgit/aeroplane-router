@@ -61,3 +61,33 @@ class Data:
       except:
          print("Reading CSVs Failed.\nQuitting")
          sys.exit()
+
+class Aircraft:
+
+   def __init__(self, data_store, aircraft_code):
+      self._aircraft_code = aircraft_code
+      self._data = data_store
+      self._range = self._lookup_range(self._aircraft_code)
+
+   def _lookup_range(self, code):
+      """ Sets aircraft's _range attribute with normalised range (km), which is 
+      looked up in the _aircraft_dict. Finds key where code == code; uses key 
+      to access that entry's range value. Called from Class' init method.
+
+      Parameters
+      ----------
+      code: string
+         Identifying aircraft code, which is first passed to the init method.
+      """
+      try:
+         for key in self._data._aircraft_dict:
+            if self._data._aircraft_dict[key]['code'] == code:
+               self._found_range = float(self._data._aircraft_dict[key]['range'])
+               self._metric = self._data._aircraft_dict[key]['units']
+               if self._metric.lower().strip() == 'imperial':
+                  self._found_range =  self._found_range * 1.60934
+               
+               return self._found_range
+      except KeyError:
+         print("An Aircraft Code Was Not Found.\nQuitting")
+         sys.exit()
