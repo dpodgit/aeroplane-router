@@ -91,3 +91,64 @@ class Aircraft:
       except KeyError:
          print("An Aircraft Code Was Not Found.\nQuitting")
          sys.exit()
+
+class Airport:
+
+   def __init__(self, data_store, airport_code):
+      self._airport_code = airport_code
+      self._data = data_store
+
+      try:
+         self._airport_name,\
+         self._latitude,\
+         self._longitude,\
+         self._country,\
+         self._currency,\
+         self._to_euro_rate = self._populate_fields(self._airport_code)
+
+      except:
+         print("An Airport not found.\nQuitting")
+
+   def _populate_fields(self, code):
+      """Using airport's identifying code, looks up relevant data and returns to
+      instance's attributes. Called from init method. 'country' in first loop is
+      used internally to search, in the second loop, for the currency ('found_currency')
+      in that country, from within a different dictionary. This latter value is
+      used in turn, in the third loop, to search again a different dictionary for
+      the exchange rate to Euro for that airport's country's currency.
+
+      Parameters
+      ----------
+      code: string
+         An airport's identifying string
+      """
+      try:
+         for key in self._data._airport_dict:
+            if self._data._airport_dict[key]['airport_code'] == code:
+               self._found_airport_name = self._data._airport_dict[key]['airport_name']
+               self._found_latitude = self._data._airport_dict[key]['latitude']
+               self._found_longitude = self._data._airport_dict[key]['longitude']
+               self._found_country = self._data._airport_dict[key]['country']
+               break
+
+         for key in self._data._countrycurrency_dict:
+            if self._data._countrycurrency_dict[key]['currency_country_name'] \
+               == self._found_country.upper():
+               self._found_currency = self._data._countrycurrency_dict[key]['currency_alphabetic_code']
+               break
+
+         for key in self._data._currency_rates_dict:
+            if self._data._currency_rates_dict[key]['CurrencyCode'] == self._found_currency:
+               self._found_to_euro_rate = self._data._currency_rates_dict[key]['toEuro']
+               break
+
+         return self._found_airport_name,\
+               float(self._found_latitude),\
+               float(self._found_longitude),\
+               self._found_country,\
+               self._found_currency,\
+               self._found_to_euro_rate
+
+      except:
+         print("An Error Has Occurred Populating Airport Fields.\nQuitting")
+         sys.exit()
