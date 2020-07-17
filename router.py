@@ -7,6 +7,8 @@ import os
 import sys
 import csv
 import glob
+from itertools import permutations
+from math import sin, cos, radians, asin, sqrt
 
 class Data:
 
@@ -152,3 +154,153 @@ class Airport:
       except:
          print("An Error Has Occurred Populating Airport Fields.\nQuitting")
          sys.exit()
+
+class Router:
+
+   def __init__(self, data_store):
+
+      self._aircraft_dict = dict()
+      self._airport_dict = dict()
+      self._data = data_store
+
+   def _calculate_distance(self, airport1, airport2):
+      """A method that return the great circle distance (shortest distance between
+      two points on the surface of a sphere), which is calculated using the
+      Haversine formula.
+
+      Parameters
+      ----------
+      airport1: Airport instance
+         The first of two airports to measure the disance between
+
+      airport2: Airport instance
+         The second of two airports to measure the disance between
+      """
+
+      lat1 = airport1._latitude
+      lon1 = airport1._longitude
+      lat2 = airport2._latitude
+      lon2 = airport2._longitude
+
+      R = 6372.8
+
+      dlat = radians(lat2 - lat1)
+      dlon = radians(lon2 - lon1)
+      lat1 = radians(lat1)
+      lat2 = radians(lat2)
+
+      a = sin(dlat/2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon/2) ** 2
+      c = 2 * asin(sqrt(a))
+
+      return c * R
+
+   def load_row(self, row):
+      """A method that takes a row (passed by main) and creates airport and 
+      aircraft objects corresponding to the identifying strings contained in the 
+      row. It checks whether the objects exist in the cache before creating. It
+      adds created objects to the cache upon creating them.
+
+      Parameters
+      ----------
+      row: list
+         A list of strings, e.g. ['DUB', 'LHR', 'CDG', 'AMS', 'CPH', 'SIS99']
+         Last element is airport. First element is "home" airport. Remaining
+         elements are intermediary airports.
+      """
+      self._row = row
+
+      # check by aircraft code if aircraft in cache; create & add otherwise
+
+      if self._row[5] in self._aircraft_dict:
+         self._aircraft = self._aircraft_dict[self._row[5]]
+      else:
+         self._aircraft = Aircraft(self._data, self._row[5])
+         self._aircraft_dict[self._row[5]] = self._aircraft
+               
+      # check by airport code if airport in cache; create & add otherwise
+      # add airports to list, for _generate_permutations method
+
+      self._airports = [None,
+                        None,
+                        None,
+                        None,
+                        None] #placeholders, index 0 is home airport; 1-3 inc. are destinations
+
+      for i in range(len(self._airports)):
+         if self._row[0:5][i] in self._airport_dict:
+            self._airports[i] = self._airport_dict[self._row[0:5][i]]
+            
+         else:
+            self._airports[i] = Airport(self._data, self._row[0:5][i])
+            self._airports[i]._populate_fields(self._data)
+            self._airport_dict[self._row[0:5][i]] = self._airports[i]
+
+   def _generate_permutations(self):
+      """A method that generates permutations of all aircraft, excluding the 
+      first "home" airport.
+      """
+
+      self._permutations = [list(airport) for airport in list(permutations(self._airports[1:5]))]
+
+   def add_cost_add_flag(self):
+      """A method that firstly generates the permutations. Secondly, iterates through
+      a permutation and calculates the distance and cost of each intermediary
+      journey (i.e. excluding home airport —> first destination, and final
+      destination —> home airport). Thirdly, adds the distance and cost of the 
+      first leg (home airport —> first destination). Fourthly, adds the distance
+      and cost of the last leg (final destination —> home airport). The total 
+      cost of the round trip is appended to the permutation / list. If no leg of
+      round trip exceeds the aircraft range, None is appended to the list. If a
+      leg does exceed the range, False is appended in place of None. Repeated
+      for each permutation in the _permutations list.
+      """
+
+      self._generate_permutations()
+
+      for journey in self._permutations:
+         flag = None
+         total_distance = 0
+         cost = 0
+
+         # tally distance & cost for all except outset & ending journeys
+         for i in range(len(journey)-1):
+            distance = self._calculate_distance(journey[i], journey[i+1])
+            total_distance += distance
+            if distance > self._aircraft._range:
+               flag = False
+            cost += (distance * float(journey[i]._to_euro_rate))
+
+         # add distance for the first leg of the journey
+         distance = self._calculate_distance(self._airports[0], journey[0])
+         total_distance += distance
+         if distance > self._aircraft._range:
+            flag = False
+         cost += (distance * float(self._airports[0]._to_euro_rate))
+
+         # add distance for the final leg of journey
+         distance = self._calculate_distance(self._airports[0], journey[-1])
+         total_distance += distance
+         if distance > self._aircraft._range:
+            flag = False
+         cost += (distance * float(journey[-1]._to_euro_rate))
+
+         journey.append(round(cost, 2))
+         journey.append(flag)
+
+   def return_cheapest_route(self):
+      """A method that first sets the lowest price by iterating through all
+      valid permuted routes. Secondly, linearally searches for the journey
+      matching that lowest price. Returns the home airport, and the lowest-
+      price journey.
+      """
+      lowest_price = 999_999_999
+
+      for journey in self._permutations:
+         if not journey[-1] == False:
+            if journey[-2] < lowest_price:
+               lowest_price = journey[-2]
+      
+      for journey in self._permutations:
+         if journey[-2] != lowest_price:
+            continue
+         return self._airports[0], journey
