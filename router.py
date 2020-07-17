@@ -304,3 +304,51 @@ class Router:
          if journey[-2] != lowest_price:
             continue
          return self._airports[0], journey
+
+def main():
+   """
+   Driver function. Initialises and prepares Data and Router instances.
+   Opens the test csv file via the Data instance's attribute, and generates a 
+   cheapest route for each line / journey. Prints formatted output of each 
+   best journey to terminal.
+   """
+
+   inputs = Data()
+   router = Router(inputs)
+
+   inputs.populate_dicts()
+
+   result = """
+   Starting Airport:     {0}
+   Destination airports: {1}
+
+   Best route: {2}  —>  {3}  —>  {4}  —>  {5}  —>  {6}  —>  {2}
+
+   Cost:           E {7}
+
+   __________________________________________________
+
+   """
+
+   with open (inputs._input_test) as file:
+      reader = csv.reader(file)
+      next(reader)
+      for row in reader:
+         router.load_row(row)
+         router.add_cost_add_flag()
+         best_route = router.return_cheapest_route()
+
+         # tuple best route first element: home airport
+         # present latter beginning and end, as home —> 1st destination
+         # and last desination —> home are factored in in Router.add_cost_add_flag
+         print(result.format( row[0],
+                              ', '.join(row[1:5]),
+                              best_route[0]._airport_code,
+                              best_route[1][0]._airport_code,
+                              best_route[1][1]._airport_code,
+                              best_route[1][2]._airport_code,
+                              best_route[1][3]._airport_code,
+                              best_route[1][4]))
+
+if __name__ == "__main__":
+   main()
