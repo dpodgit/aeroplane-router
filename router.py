@@ -77,7 +77,7 @@ class Data:
       """Returns the absolute path for each .csv path in the hard-coded path.
       """
       csv_repo = \
-      "/Users/davidodwyer/Documents/computerScience/Independent/scripts/python-scripts/aeroplane_routing" 
+      "/Users/davidodwyer/Documents/ComputerScience/Independent/scripts/python-scripts/university_projects/aeroplane_routing" 
 
       try:
          filepaths = [os.path.abspath(f) for f in os.listdir(path=csv_repo)\
