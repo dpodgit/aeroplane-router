@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 """
 @author: David O'Dwyer
 Created: 2019
@@ -11,6 +13,49 @@ from itertools import permutations
 from math import sin, cos, radians, asin, sqrt
 
 class Data:
+   """A class that collects, internally organises, and reads into dictionaries
+   inputs csv files, excepting the test.csv, given a hard-coded path. Dicts
+   are used by other classes and the program's main method. 
+
+   Attributes
+   ----------
+   _input_csvs: list
+      A list of full filepaths for each of the 5 inputs CSV files (inc. 'test')
+
+   _input_test: string
+      The full filepath to the test file.
+
+   _aircraft_dict: dict
+      Dictionary representation of data in aircraft.csv. Dict keys are ascending
+      integers, beginning at 0.
+
+   _airport_dict: dict
+      Dictionary representation of data in airport.csv. Dict keys are ascending
+      integers, beginning at 0.
+
+   _countrycurrency_dict: dict
+      Dictionary representation of data in countrycurrency.csv. Dict keys are
+      ascending integers, beginning at 0.
+
+   _currency_rates_dict: dict
+      Dictionary representation of data in currencyrates.csv. Dict keys are
+      ascending integers, beginning at 0.
+
+   _output_dicts: list
+      A list that collects the preceding 4 dictionary objects.
+
+   Methods
+   -------
+   _collect_datasets
+      Static method that returns the absolute path for each .csv file in the
+      target directory, hard-coded and specified in the csv_repo variable.
+
+   populate_dicts
+      Method employs CSV module's DictReader to read all .csv files, excluding
+      test.csv, listed in the _input_csvs attribute and write them in dict 
+      form to the four data dictionaries listed in the _output_dicts attribute.
+      Hard-coded range (0,4) loop, as always only 4 input files.
+   """
 
    def __init__(self):
       self._input_csvs = Data._collect_datasets()
@@ -65,6 +110,29 @@ class Data:
          sys.exit()
 
 class Aircraft:
+   """A class that takes an identifying aircraft code and collects data regarding
+   that aircraft, specifically its range, which is normalised to metric units.
+
+   Attributes
+   ----------
+   _aircraft_code: string
+      A string which identifies a particular aircraft, for which there is
+      information on in the Data instance's _aircraft_dict.
+
+   _data: Data class instance
+      Instance of the Data class passed from an instance of the Router class.
+      Contains the dictionaries representing the input csv data.
+
+   _range: float
+      Number representing the maximum range of the aircraft.
+
+   Methods
+   -------
+   _lookup_range(code):
+      A method that takes the aircraft code, performs a lookup in _data for
+      that aircraft's range and metric (imperial / metric), and converts range
+      to metric if given as imperial.
+   """
 
    def __init__(self, data_store, aircraft_code):
       self._aircraft_code = aircraft_code
@@ -95,6 +163,46 @@ class Aircraft:
          sys.exit()
 
 class Airport:
+   """A class that takes an identifying airport code and collects data regarding
+   that airport.
+
+   Attributes
+   ----------
+   _airport_code: string:
+      A string which identifies a particular airport, for which there is
+      information on in the Data instance's _aircraft_dict.
+
+   _data: Data class instance
+      Instance of the Data class passed from an instance of the Router class.
+      Contains the dictionaries representing the input csv data.
+
+   _airport_name: string
+      A string representation of the airport's name.
+
+   _latitude: float
+      The latitudinal coordinates of the airport.
+
+   _longitude: float
+      The longitudinal coordinates of the airport.
+
+   _country: string
+      A string representation of the country in which the airport exists.
+
+   _currency: string
+      A string representation of the currency alphabetic code, identifying the
+      currency used in the country in which the airport is.
+
+   _to_euro_rate: float
+      The exchange rate from the currency used in country in which the airport
+      is to Euro.
+
+   Methods
+   -------
+   _populate_fields(code)
+      A method that takes an airport's identifying code, iterates through 3 of
+      the data sources, and returns all of the instance's attribute data, other
+      than the airport code and data source, with which it is initialised.
+   """
 
    def __init__(self, data_store, airport_code):
       self._airport_code = airport_code
@@ -156,6 +264,73 @@ class Airport:
          sys.exit()
 
 class Router:
+   """A class that by composition assembles Data, Aircraft, and Airport instances
+   to load the query specifics; generate permuted journies; cost the journey and
+   label illegal journeies; and return the optimal route.
+
+   Attributes
+   ----------
+   _aircraft_dict: dict
+      A dictionary serving as a cache for already-created aircraft objects.
+
+   _airport_dict: dict
+      A dictionary serving as a cache for already-created airport objects
+
+   _data: Data class instance
+      Instance of the Data class passed from an instance of the Router class.
+      Contains the dictionaries representing the input csv data.
+
+   _row: list
+      A list of strings, where each string is a value from a row of data in the
+      test.csv file. Illustration: a CSV row 'DUB,LHR,CDG,AMS,CPH,SIS99' is 
+      represented in this attribute as '['DUB', 'LHR', 'CDG', 'AMS', 'CPH', 'SIS99']' 
+
+   _airports: list
+      A list of Airport class objects; one such object for each aircraft code
+      in the _row attribute.
+
+   _permutations: list
+      Two dimensional list, with each inner list a permutation of all airports
+      belonging to the round trip, excluding the home / destination airport. See
+      elaboration in _generate_permutations entry, below.
+
+   Methods
+   -------
+   _calculate_distance(airport1, airport2)
+      A method that return the great circle distance (shortest distance between
+      two points on the surface of a sphere), which is calculated using the
+      Haversine formula. Method accesses the latitude and longitude attributes
+      of the two Airport class instances passed.
+
+   load_row(row)
+      A method called from main method, which passes a row of data from test.csv,
+      containing a list of destinations-to-visit and the aircraft in use. It
+      implements a cache for both airports and aircraft. New instances of Airport
+      and Aircraft are created for new airports and aircraft. Previously seen
+      airports and aircraft are drawn from the cache. Each of the 5 airports,
+      once created or drawn from the cache, are added to the _airports attribute
+      which collects them for ease of permutation in the _generate_permutations
+      method.
+
+   _generate_permutations
+      Acts on the _airports attibute, which collects all 5 airports of a trip.
+      Excluding the positionally first ("home") airport, it creates permutations 
+      for the remaining 4 airports, and saves them to a _permutations attribute.
+      As the positionally first airport must always be first and last, it is not
+      included in the permutations, but methodologically accounted for in these
+      positions in the add_cost_add_flag method. Thus, illegal permutations (home
+      airport being an intermediary airport) are avoided.
+
+   add_cost_add_flag
+      A method that adds adds two values to each permuted list of airports:
+      1) the total cost of the round-trip journey, 2) a "flag", which if boolean
+      False indicates that a step in the journey exceeds the range of the
+      aircraft, thereby invalidating the whole round-trip.
+
+   return_cheapest_route
+      A method that filters invalid journies, and returns the cheapest, valid
+      permuted round-trip.
+   """
 
    def __init__(self, data_store):
 
@@ -306,8 +481,7 @@ class Router:
          return self._airports[0], journey
 
 def main():
-   """
-   Driver function. Initialises and prepares Data and Router instances.
+   """Driver function. Initialises and prepares Data and Router instances.
    Opens the test csv file via the Data instance's attribute, and generates a 
    cheapest route for each line / journey. Prints formatted output of each 
    best journey to terminal.
