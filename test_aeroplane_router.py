@@ -1,5 +1,5 @@
 import unittest
-import aeroplane_router as prog
+import router as prog
 
 class Test(unittest.TestCase):
 
